@@ -1,0 +1,8 @@
+-------------------------------------------------------------------------------
+Test set: com.livelab.security.controller.OrderControllerTest
+-------------------------------------------------------------------------------
+Tests run: 1, Failures: 1, Errors: 0, Skipped: 0, Time elapsed: 0.001 s <<< FAILURE! - in com.livelab.security.controller.OrderControllerTest
+testCreateAndQueryOrder  Time elapsed: 0.001 s  <<< FAILURE!
+java.lang.AssertionError: Status expected:<200> but was:<404>
+	at com.livelab.security.controller.OrderControllerTest.testCreateAndQueryOrder(OrderControllerTest.java:38)
+
