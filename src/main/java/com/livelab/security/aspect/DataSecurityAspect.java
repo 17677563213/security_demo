@@ -149,7 +149,9 @@ public class DataSecurityAspect {
                     String encrypted = cryptoUtil.encrypt(originalValue, encrypt.keyId());
                     log.info("Encrypted result for field {}: {}", field.getName(), encrypted);
                     field.set(obj, encrypted);
+                    log.debug("Updated field: {} with encrypted value: {}", field.getName(), encrypted);
                 }
+                log.debug("Processed field: {} with final value: {}", field.getName(), field.get(obj));
             }
         } catch (Exception e) {
             log.error("Error in handleEncryptAndDigest", e);

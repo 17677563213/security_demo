@@ -26,12 +26,24 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
         log.info("Calculating digest for phone: {}", phone);
         String phoneDigest = digestUtil.calculateDigest(phone);
         log.info("Querying user by phone digest: {}", phoneDigest);
+        
+        // 直接查询数据库中的记录
         LambdaQueryWrapper<User> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(User::getPhoneDigest, phoneDigest)
-              .orderByDesc(User::getId)
-              .last("LIMIT 1");  // 只返回最新的一条记录
+        wrapper.eq(User::getPhoneDigest, phoneDigest);
+        
+        // 先不限制条数，看看到底有多少匹配的记录
+        List<User> users = list(wrapper);
+        log.info("Found {} users with phone digest: {}", users.size(), phoneDigest);
+        for (User user : users) {
+            log.info("Found user: id={}, phone={}, phoneDigest={}", 
+                    user.getId(), user.getPhone(), user.getPhoneDigest());
+        }
+        
+        // 只返回最新的一条记录
+        wrapper.orderByDesc(User::getId).last("LIMIT 1");
+        log.info("Final SQL wrapper: {}", wrapper.getSqlSegment());
         User user = getOne(wrapper);
-        log.info("Query result: {}", user);
+        log.info("Final query result: {}", user);
         return user;
     }
 

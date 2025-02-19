@@ -1,5 +1,6 @@
 package com.livelab.security.mapper;
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.livelab.security.entity.KeyRecord;
 import org.apache.ibatis.annotations.Mapper;
@@ -12,14 +13,18 @@ import java.util.List;
 public interface KeyRecordMapper extends BaseMapper<KeyRecord> {
     
     /**
-     * 获取指定keyId的当前活跃密钥
+     * 获取当前生效的密钥
+     *
+     * @param keyId  密钥ID
+     * @return 密钥记录
      */
     default KeyRecord getActiveKey(@Param("keyId") String keyId) {
-        return selectOne(
-            new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<KeyRecord>()
-                .eq(KeyRecord::getKeyId, keyId)
+        LambdaQueryWrapper<KeyRecord> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(KeyRecord::getKeyId, keyId)
                 .eq(KeyRecord::getActive, true)
-        );
+                .orderByDesc(KeyRecord::getCreateTime)
+                .last("LIMIT 1");
+        return selectOne(wrapper);
     }
     
     /**

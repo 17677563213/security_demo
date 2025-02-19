@@ -159,13 +159,28 @@ public class KeyManager {
     @Scheduled(fixedRate = 30000)
     @Transactional
     public void checkAndUpdateExpiredKeys() {
+        log.info("Starting scheduled key expiration check");
         keyConfig.keySet().forEach(keyId -> {
-            KeyRecord activeKey = keyRecordMapper.getActiveKey(keyId);
-            if (activeKey != null && LocalDateTime.now().isAfter(activeKey.getExpireTime())) {
-                log.info("Key {} has expired, creating new version", keyId);
-                forceRefreshKey(keyId);
+            try {
+                KeyRecord activeKey = keyRecordMapper.getActiveKey(keyId);
+                if (activeKey != null) {
+                    LocalDateTime expireTime = activeKey.getExpireTime();
+                    if (LocalDateTime.now().isAfter(expireTime)) {
+                        log.info("Key {} has expired at {}, creating new version", keyId, expireTime);
+                        forceRefreshKey(keyId);
+                    } else {
+                        log.debug("Key {} is still valid until {}", keyId, expireTime);
+                    }
+                } else {
+                    log.warn("No active key found for keyId: {}, creating new key", keyId);
+                    String newKey = generateNewKey();
+                    createNewKeyVersion(keyId, newKey);
+                }
+            } catch (Exception e) {
+                log.error("Failed to check/update key {}: {}", keyId, e.getMessage(), e);
             }
         });
+        log.info("Completed scheduled key expiration check");
     }
     
     /**
@@ -173,22 +188,30 @@ public class KeyManager {
      */
     @Transactional
     protected void createNewKeyVersion(String keyId, String key) {
-        LocalDateTime now = LocalDateTime.now();
-        KeyRecord newKey = KeyRecord.builder()
-                .keyId(keyId)
-                .version(generateVersion())
-                .content(key)
-                .createTime(now)
-                .effectiveTime(now)
-                .expireTime(now.plusMinutes(keyExpireMinutes))
-                .active(true)
-                .status("ACTIVE")
-                .creator("SYSTEM")
-                .remark("Auto generated key")
-                .build();
-        
-        keyRecordMapper.insert(newKey);
-        log.info("Created new key version {} for keyId {}", newKey.getVersion(), keyId);
+        try {
+            LocalDateTime now = LocalDateTime.now();
+            LocalDateTime expireTime = now.plusMinutes(keyExpireMinutes);
+            
+            KeyRecord newKey = KeyRecord.builder()
+                    .keyId(keyId)
+                    .version(generateVersion())
+                    .content(key)
+                    .createTime(now)
+                    .effectiveTime(now)
+                    .expireTime(expireTime)
+                    .active(true)
+                    .status("ACTIVE")
+                    .creator("SYSTEM")
+                    .remark("Auto generated key")
+                    .build();
+            
+            keyRecordMapper.insert(newKey);
+            log.info("Created new key version {} for keyId {}, valid until {}", 
+                    newKey.getVersion(), keyId, expireTime);
+        } catch (Exception e) {
+            log.error("Failed to create new key version for keyId {}: {}", keyId, e.getMessage(), e);
+            throw new RuntimeException("Failed to create new key version: " + e.getMessage(), e);
+        }
     }
     
     /**
