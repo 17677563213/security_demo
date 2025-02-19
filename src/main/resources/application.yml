@@ -1,0 +1,48 @@
+server:
+  port: 8082
+
+spring:
+  application:
+    name: data-security-demo
+    
+  # 数据库配置
+  datasource:
+    url: jdbc:mysql://localhost:3306/security_demo?useUnicode=true&characterEncoding=utf8&useSSL=false
+    username: root
+    password: root
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
+# MyBatis-Plus配置
+mybatis-plus:
+  mapper-locations: classpath*:/mapper/**/*.xml
+  type-aliases-package: com.windsurfing.security.entity
+  configuration:
+    map-underscore-to-camel-case: true
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+  global-config:
+    db-config:
+      id-type: auto
+      logic-delete-field: deleted
+      logic-delete-value: 1
+      logic-not-delete-value: 0
+
+# 数据安全配置
+security:
+  crypto:
+    # 加密密钥配置（使用Base64编码的16字节密钥）
+    keys:
+      PHONE_KEY: "MTIzNDU2Nzg5MDEyMzQ1Ng==" # Base64编码的16字节密钥
+      ID_CARD_KEY: "NjU0MzIxMDk4NzY1NDMyMQ==" # Base64编码的16字节密钥
+      EMAIL_KEY: "OTg3NjU0MzIxMDEyMzQ1Ng==" # Base64编码的16字节密钥
+    algorithm: SM4
+    mode: ECB
+    padding: PKCS5Padding
+  digest:
+    algorithm: SM3
+    salt: "WindSurfing2025" # 加盐值，防止彩虹表攻击
+
+logging:
+  level:
+    com.windsurfing.security: DEBUG
+    org.springframework: INFO
+    com.baomidou.mybatisplus: DEBUG
