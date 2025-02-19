@@ -39,7 +39,7 @@ security:
     padding: PKCS5Padding
   digest:
     algorithm: SM3
-    salt: "WindSurfing2025" # 加盐值，防止彩虹表攻击
+    salt: "LiveLab2025" # 加盐值，防止彩虹表攻击
 
 logging:
   level:
