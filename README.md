@@ -90,6 +90,13 @@ security:
 ### 实体类定义
 
 ```java
+package livelab.security.demo.entity;
+
+import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableId;
+import com.baomidou.mybatisplus.annotation.TableName;
+import lombok.Data;
+
 @Data
 @TableName("user")
 public class User {
