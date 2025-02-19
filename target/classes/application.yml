@@ -44,5 +44,6 @@ security:
 logging:
   level:
     com.livelab.security: DEBUG
-    org.springframework: INFO
+    org.springframework: DEBUG
     com.baomidou.mybatisplus: DEBUG
+    root: DEBUG

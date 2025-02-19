@@ -76,6 +76,7 @@ public class DataSecurityAspect {
      * 在数据返回前进行解密和脱敏处理
      */
     @Around("execution(* com.baomidou.mybatisplus.core.mapper.BaseMapper.select*(..)) || " +
+            "execution(* com.baomidou.mybatisplus.core.mapper.BaseMapper.selectList(..)) || " +
             "execution(* com.baomidou.mybatisplus.extension.service.IService.list*(..)) || " +
             "execution(* com.baomidou.mybatisplus.extension.service.IService.get*(..))")
     public Object handleFind(ProceedingJoinPoint joinPoint) throws Throwable {
@@ -111,36 +112,43 @@ public class DataSecurityAspect {
             
             Class<?> clazz = obj.getClass();
             Field[] fields = clazz.getDeclaredFields();
+            log.info("Processing object of type: {}", clazz.getName());
 
             for (Field field : fields) {
                 field.setAccessible(true);
                 Object value = field.get(obj);
                 if (value == null) continue;
 
-                // 处理加密注解 @Encrypt
-                Encrypt encrypt = field.getAnnotation(Encrypt.class);
-                if (encrypt != null) {
-                    log.debug("Encrypting field: {} with keyId: {}, value: {}", field.getName(), encrypt.keyId(), value);
-                    // 使用指定的密钥ID进行加密
-                    String encrypted = cryptoUtil.encrypt(value.toString(), encrypt.keyId());
-                    log.debug("Encrypted result for field {}: {}", field.getName(), encrypted);
-                    field.set(obj, encrypted);
-                }
+                String fieldName = field.getName();
+                log.info("Processing field: {} with value: {}", fieldName, value);
 
-                // 处理摘要注解 @Digest
-                Digest digest = field.getAnnotation(Digest.class);
-                if (digest != null) {
-                    log.debug("Generating digest for field: {}, value: {}", field.getName(), value);
-                    // 生成摘要并存储到对应的摘要字段
-                    String digestValue = digestUtil.calculateDigest(value.toString());
-                    String digestFieldName = field.getName() + "Digest";
+                // 先生成摘要，因为摘要应该基于原始值而不是加密后的值
+                if (fieldName.equals("phone") || fieldName.equals("email") || fieldName.equals("idCard")) {
+                    String originalValue = value.toString();
+                    log.info("Calculating digest for field: {} with value: {}", fieldName, originalValue);
+                    String digestValue = digestUtil.calculateDigest(originalValue);
+                    String digestFieldName = fieldName + "Digest";
                     try {
                         Field digestField = clazz.getDeclaredField(digestFieldName);
                         digestField.setAccessible(true);
                         digestField.set(obj, digestValue);
+                        log.info("Set digest for field: {}, value: {}, digest: {}", 
+                                fieldName, originalValue, digestValue);
                     } catch (NoSuchFieldException e) {
                         log.warn("Digest field not found: {}", digestFieldName);
                     }
+                }
+
+                // 处理加密注解 @Encrypt
+                Encrypt encrypt = field.getAnnotation(Encrypt.class);
+                if (encrypt != null) {
+                    String originalValue = value.toString();
+                    log.info("Encrypting field: {} with keyId: {}, original value: {}", 
+                            field.getName(), encrypt.keyId(), originalValue);
+                    // 使用指定的密钥ID进行加密
+                    String encrypted = cryptoUtil.encrypt(originalValue, encrypt.keyId());
+                    log.info("Encrypted result for field {}: {}", field.getName(), encrypted);
+                    field.set(obj, encrypted);
                 }
             }
         } catch (Exception e) {

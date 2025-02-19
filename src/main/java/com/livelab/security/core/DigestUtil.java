@@ -1,6 +1,8 @@
 package com.livelab.security.core;
 
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import java.security.MessageDigest;
@@ -25,6 +27,8 @@ public class DigestUtil {
     @Value("${security.digest.algorithm}")
     private String algorithm;
 
+    private static final Logger log = LoggerFactory.getLogger(DigestUtil.class);
+
     /**
      * 计算字符串的摘要值
      * @param content 待计算的内容
@@ -36,16 +40,24 @@ public class DigestUtil {
                 return null;
             }
 
+            log.info("Calculating digest for content: {}", content);
+            log.info("Using salt: {}", salt);
+            log.info("Using algorithm: {}", algorithm);
+            
             // 将salt和内容组合
             String contentWithSalt = content + salt;
+            log.info("Content with salt: {}", contentWithSalt);
 
             // 使用SM3计算摘要
             MessageDigest digest = MessageDigest.getInstance(algorithm, "BC");
             byte[] hash = digest.digest(contentWithSalt.getBytes(StandardCharsets.UTF_8));
 
             // 使用Base64编码
-            return Base64.getEncoder().encodeToString(hash);
+            String result = Base64.getEncoder().encodeToString(hash);
+            log.info("Generated digest: {}", result);
+            return result;
         } catch (Exception e) {
+            log.error("Failed to calculate digest", e);
             throw new RuntimeException("Failed to calculate digest", e);
         }
     }

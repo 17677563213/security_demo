@@ -4,7 +4,6 @@ import com.baomidou.mybatisplus.annotation.*;
 import com.livelab.security.annotation.Decrypt;
 import com.livelab.security.annotation.Encrypt;
 import com.livelab.security.annotation.Mask;
-import com.livelab.security.annotation.Digest;
 import lombok.Data;
 
 @Data
@@ -19,19 +18,16 @@ public class User {
     @Mask(type = Mask.MaskType.PHONE)
     @Decrypt
     @Encrypt(keyId = "PHONE_KEY")
-    @Digest
     private String phone;
     
     @Mask(type = Mask.MaskType.EMAIL)
     @Decrypt
     @Encrypt(keyId = "EMAIL_KEY")
-    @Digest
     private String email;
     
     @Mask(type = Mask.MaskType.ID_CARD)
     @Decrypt
     @Encrypt(keyId = "ID_CARD_KEY")
-    @Digest
     private String idCard;
     
     private String password;
