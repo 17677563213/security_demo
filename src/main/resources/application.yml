@@ -4,6 +4,8 @@ server:
 spring:
   application:
     name: data-security-demo
+  main:
+    allow-circular-references: true
     
   # 数据库配置
   datasource:
@@ -28,12 +30,10 @@ mybatis-plus:
 
 # 数据安全配置
 security:
+  keys: '{PHONE_KEY: "MTIzNDU2Nzg5MDEyMzQ1Ng==", ID_CARD_KEY: "NjU0MzIxMDk4NzY1NDMyMQ==", EMAIL_KEY: "OTg3NjU0MzIxMDEyMzQ1Ng=="}'
+  key:
+    expireMinutes: 1  # 密钥有效期，单位：分钟
   crypto:
-    # 加密密钥配置（使用Base64编码的16字节密钥）
-    keys:
-      PHONE_KEY: "MTIzNDU2Nzg5MDEyMzQ1Ng==" # Base64编码的16字节密钥
-      ID_CARD_KEY: "NjU0MzIxMDk4NzY1NDMyMQ==" # Base64编码的16字节密钥
-      EMAIL_KEY: "OTg3NjU0MzIxMDEyMzQ1Ng==" # Base64编码的16字节密钥
     algorithm: SM4
     mode: ECB
     padding: PKCS5Padding

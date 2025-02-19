@@ -2,6 +2,7 @@ package com.livelab.security.core;
 
 import lombok.extern.slf4j.Slf4j;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Component;
 import javax.crypto.Cipher;
 import javax.crypto.spec.SecretKeySpec;
@@ -18,6 +19,7 @@ public class CryptoUtil {
 
     private static final String ALGORITHM = "SM4/ECB/PKCS5Padding";
     private static final String SEPARATOR = "$";
+    private static final int SM4_KEY_LENGTH = 16; // SM4 requires 128-bit (16-byte) key
     
     static {
         Security.addProvider(new BouncyCastleProvider());
@@ -25,7 +27,7 @@ public class CryptoUtil {
     
     private final KeyManager keyManager;
     
-    public CryptoUtil(KeyManager keyManager) {
+    public CryptoUtil(@Lazy KeyManager keyManager) {
         this.keyManager = keyManager;
     }
     
@@ -48,70 +50,68 @@ public class CryptoUtil {
 
             log.debug("Using key for encryption: {}", key);
             
+            // 将 Base64 密钥解码为字节数组
+            byte[] keyBytes = Base64.getDecoder().decode(key);
+            
+            // 确保密钥长度为 128 位（16 字节）
+            if (keyBytes.length != SM4_KEY_LENGTH) {
+                byte[] adjustedKey = new byte[SM4_KEY_LENGTH];
+                System.arraycopy(keyBytes, 0, adjustedKey, 0, Math.min(keyBytes.length, SM4_KEY_LENGTH));
+                keyBytes = adjustedKey;
+            }
+            
             Cipher cipher = Cipher.getInstance(ALGORITHM, "BC");
-            SecretKeySpec keySpec = new SecretKeySpec(Base64.getDecoder().decode(key), "SM4");
-            cipher.init(Cipher.ENCRYPT_MODE, keySpec);
-
+            cipher.init(Cipher.ENCRYPT_MODE, new SecretKeySpec(keyBytes, "SM4"));
             byte[] encrypted = cipher.doFinal(content.getBytes());
-            String encryptedContent = Base64.getEncoder().encodeToString(encrypted);
-            
-            // 返回格式：$keyId$encryptedContent
-            String result = String.format("$%s$%s", keyId, encryptedContent);
-            log.debug("Encrypted content with keyId: {}, result: {}", keyId, result);
-            
-            return result;
+            return SEPARATOR + keyId + SEPARATOR + Base64.getEncoder().encodeToString(encrypted);
         } catch (Exception e) {
-            log.error("Failed to encrypt content", e);
-            throw new RuntimeException("Failed to encrypt content: " + e.getMessage(), e);
+            log.error("Encryption failed for keyId: {}", keyId, e);
+            throw new RuntimeException("Encryption failed", e);
         }
     }
     
     /**
      * 解密数据
-     * @param encryptedContent 加密的内容（格式：$keyId$加密后内容）
-     * @return 解密后的原文
+     * @param content 待解密内容，格式：$keyId$加密后内容
+     * @return 解密后的内容
      */
-    public String decrypt(String encryptedContent) {
-        if (encryptedContent == null || encryptedContent.isEmpty()) {
-            return encryptedContent;
+    public String decrypt(String content) {
+        if (content == null || content.isEmpty() || !content.startsWith(SEPARATOR)) {
+            return content;
         }
 
         try {
-            // 解析格式：$keyId$encryptedContent
-            String[] parts = encryptedContent.split("\\$", 3);
-            if (parts.length != 3 || !encryptedContent.startsWith("$")) {
-                log.error("Invalid encrypted content format: {}", encryptedContent);
+            String[] parts = content.split("\\$");
+            if (parts.length != 3) {
                 throw new IllegalArgumentException("Invalid encrypted content format");
             }
 
             String keyId = parts[1];
-            String content = parts[2];
-
-            log.debug("Decrypting content with keyId: {}, content: {}", keyId, content);
-
+            String encryptedContent = parts[2];
             String key = keyManager.getActiveKey(keyId);
             if (key == null) {
                 throw new IllegalArgumentException("No key found for keyId: " + keyId);
             }
 
             log.debug("Using key for decryption: {}", key);
-
+            
+            // 将 Base64 密钥解码为字节数组
+            byte[] keyBytes = Base64.getDecoder().decode(key);
+            
+            // 确保密钥长度为 128 位（16 字节）
+            if (keyBytes.length != SM4_KEY_LENGTH) {
+                byte[] adjustedKey = new byte[SM4_KEY_LENGTH];
+                System.arraycopy(keyBytes, 0, adjustedKey, 0, Math.min(keyBytes.length, SM4_KEY_LENGTH));
+                keyBytes = adjustedKey;
+            }
+            
             Cipher cipher = Cipher.getInstance(ALGORITHM, "BC");
-            SecretKeySpec keySpec = new SecretKeySpec(Base64.getDecoder().decode(key), "SM4");
-            cipher.init(Cipher.DECRYPT_MODE, keySpec);
-
-            byte[] decrypted = cipher.doFinal(Base64.getDecoder().decode(content));
-            String result = new String(decrypted);
-            
-            log.debug("Decrypted content: {}", result);
-            
-            return result;
-        } catch (IllegalArgumentException e) {
-            log.error("Invalid encrypted content format: {}", encryptedContent);
-            throw e;
+            cipher.init(Cipher.DECRYPT_MODE, new SecretKeySpec(keyBytes, "SM4"));
+            byte[] decrypted = cipher.doFinal(Base64.getDecoder().decode(encryptedContent));
+            return new String(decrypted);
         } catch (Exception e) {
-            log.error("Failed to decrypt content: {}", encryptedContent, e);
-            throw new RuntimeException("Failed to decrypt content: " + e.getMessage(), e);
+            log.error("Decryption failed", e);
+            throw new RuntimeException("Decryption failed", e);
         }
     }
 }
