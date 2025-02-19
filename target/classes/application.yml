@@ -15,7 +15,7 @@ spring:
 # MyBatis-Plus配置
 mybatis-plus:
   mapper-locations: classpath*:/mapper/**/*.xml
-  type-aliases-package: com.windsurfing.security.entity
+  type-aliases-package: com.livelab.security.entity
   configuration:
     map-underscore-to-camel-case: true
     log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
@@ -39,10 +39,10 @@ security:
     padding: PKCS5Padding
   digest:
     algorithm: SM3
-    salt: "WindSurfing2025" # 加盐值，防止彩虹表攻击
+    salt: "LiveLab2025" # 加盐值，防止彩虹表攻击
 
 logging:
   level:
-    com.windsurfing.security: DEBUG
+    com.livelab.security: DEBUG
     org.springframework: INFO
     com.baomidou.mybatisplus: DEBUG
