@@ -1,22 +1,19 @@
 package com.livelab.security.starter.aspect;
 
-import com.livelab.security.starter.annotation.DataSecurity;
 import com.livelab.security.starter.annotation.Decrypt;
 import com.livelab.security.starter.annotation.Digest;
 import com.livelab.security.starter.annotation.Encrypt;
 import com.livelab.security.starter.core.CryptoUtil;
-import com.livelab.security.starter.core.DigestUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Around;
 import org.aspectj.lang.annotation.Aspect;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
+import org.springframework.util.DigestUtils;
 
 import java.lang.reflect.Field;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
+import java.util.Collection;
 
 /**
  * 数据安全切面，处理数据的加密、解密和摘要
@@ -30,11 +27,9 @@ import java.util.List;
 @Component
 public class DataSecurityAspect {
     private final CryptoUtil cryptoUtil;
-    private final DigestUtil digestUtil;
 
-    public DataSecurityAspect(CryptoUtil cryptoUtil, DigestUtil digestUtil) {
+    public DataSecurityAspect(CryptoUtil cryptoUtil) {
         this.cryptoUtil = cryptoUtil;
-        this.digestUtil = digestUtil;
     }
 
     /**
@@ -46,102 +41,138 @@ public class DataSecurityAspect {
      * @return 处理后的结果
      * @throws Throwable 处理过程中的异常
      */
-    @Around("@annotation(com.livelab.security.starter.annotation.DataSecurity) || @within(com.livelab.security.starter.annotation.DataSecurity)")
-    public Object handleDataSecurity(ProceedingJoinPoint joinPoint) throws Throwable {
-        log.info("DataSecurityAspect is processing method: {}", joinPoint.getSignature().getName());
-        Object[] args = joinPoint.getArgs();
-        
-        // 处理入参加密和摘要
-        for (Object arg : args) {
-            if (arg != null) {
-                processObject(arg, true);
+    @Around("execution(* com.baomidou.mybatisplus.core.mapper.BaseMapper+.*(..))")
+    public Object handleFind(ProceedingJoinPoint joinPoint) throws Throwable {
+        // 处理保存前的加密和摘要
+        String methodName = joinPoint.getSignature().getName();
+        if (methodName.startsWith("insert") || methodName.startsWith("update")) {
+            Object[] args = joinPoint.getArgs();
+            if (args != null && args.length > 0) {
+                Object param = args[0];
+                if (param instanceof Collection) {
+                    // 处理批量操作
+                    for (Object item : (Collection<?>) param) {
+                        handleEncryptAndDigest(item);
+                    }
+                } else {
+                    // 处理单个对象
+                    handleEncryptAndDigest(param);
+                }
             }
         }
 
         // 执行原方法
         Object result = joinPoint.proceed();
 
-        // 处理出参解密
-        if (result != null) {
-            processObject(result, false);
+        // 处理查询结果的解密
+        try {
+            if (result instanceof Collection) {
+                // 处理集合类型的结果
+                for (Object item : (Collection<?>) result) {
+                    handleDecrypt(item);
+                }
+            } else if (result != null) {
+                // 处理单个对象的结果
+                handleDecrypt(result);
+            }
+        } catch (Exception e) {
+            log.error("Error processing result in security aspect", e);
         }
 
         return result;
     }
 
     /**
-     * 处理对象的加密、解密和摘要
+     * 处理对象的加密和摘要
      * - 查找带有@Encrypt注解的字段进行加密
-     * - 查找带有@Decrypt注解的字段进行解密
      * - 查找带有@Digest注解的字段生成摘要
+     * - 摘要会存储在同名的{字段名}Digest字段中
      *
      * @param obj 需要处理的对象
-     * @param isRequest 是否是请求参数
      */
-    private void processObject(Object obj, boolean isRequest) throws Exception {
-        if (obj == null) return;
-        
-        // 如果是基本类型或字符串，直接返回
-        if (obj.getClass().isPrimitive() || obj instanceof String || obj instanceof Number) {
+    private void handleEncryptAndDigest(Object obj) {
+        if (obj == null) {
             return;
         }
 
         Class<?> clazz = obj.getClass();
-        Field[] fields = getAllFields(clazz);
+        Field[] fields = clazz.getDeclaredFields();
 
         for (Field field : fields) {
-            field.setAccessible(true);
-            Object value = field.get(obj);
-            if (value == null) continue;
+            try {
+                field.setAccessible(true);
+                Object value = field.get(obj);
+                if (value instanceof String) {
+                    String strValue = (String) value;
 
-            // 处理加密字段
-            if (field.isAnnotationPresent(Encrypt.class) && isRequest) {
-                String encryptedValue = cryptoUtil.encrypt(value.toString());
-                field.set(obj, encryptedValue);
-                log.debug("Encrypted field: {}", field.getName());
-            }
+                    // 处理加密：使用@Encrypt注解指定的密钥类型进行加密
+                    Encrypt encrypt = field.getAnnotation(Encrypt.class);
+                    if (encrypt != null) {
+                        String encryptedValue = cryptoUtil.encrypt(strValue, encrypt.keyType());
+                        field.set(obj, encryptedValue);
+                    }
 
-            // 处理解密字段
-            if (field.isAnnotationPresent(Decrypt.class) && !isRequest) {
-                String decryptedValue = cryptoUtil.decrypt(value.toString());
-                field.set(obj, decryptedValue);
-                log.debug("Decrypted field: {}", field.getName());
-            }
-
-            // 处理摘要字段
-            if (field.isAnnotationPresent(Digest.class) && isRequest) {
-                Digest digest = field.getAnnotation(Digest.class);
-                String[] sourceFields = digest.sourceFields();
-                if (sourceFields.length > 0) {
-                    List<String> sourceValues = new ArrayList<>();
-                    for (String sourceFieldName : sourceFields) {
-                        Field sourceField = clazz.getDeclaredField(sourceFieldName);
-                        sourceField.setAccessible(true);
-                        Object sourceValue = sourceField.get(obj);
-                        if (sourceValue != null) {
-                            sourceValues.add(sourceValue.toString());
+                    // 处理摘要：生成MD5摘要并存储在对应的摘要字段中
+                    Digest digest = field.getAnnotation(Digest.class);
+                    if (digest != null) {
+                        String digestFieldName = field.getName() + "Digest";
+                        try {
+                            Field digestField = clazz.getDeclaredField(digestFieldName);
+                            digestField.setAccessible(true);
+                            String md5 = DigestUtils.md5DigestAsHex(strValue.getBytes());
+                            digestField.set(obj, md5);
+                        } catch (NoSuchFieldException e) {
+                            log.error("No digest field found for: " + field.getName(), e);
                         }
                     }
-                    String digestValue = digestUtil.generateDigest(String.join("", sourceValues));
-                    field.set(obj, digestValue);
-                    log.debug("Generated digest for field: {}", field.getName());
                 }
+            } catch (Exception e) {
+                log.error("Error processing field: " + field.getName(), e);
             }
         }
     }
 
     /**
-     * 获取所有字段，包括父类字段
+     * 处理对象的解密
+     * - 查找同时带有@Decrypt和@Encrypt注解的字段
+     * - 解析加密字符串中的密钥类型和实际加密内容
+     * - 使用对应的密钥进行解密
+     * 
+     * 加密格式：$密钥类型$加密内容
+     * 例如：$PHONE_KEY$encrypted_content
      *
-     * @param clazz 类
-     * @return 所有字段
+     * @param obj 需要解密的对象
      */
-    private Field[] getAllFields(Class<?> clazz) {
-        List<Field> fields = new ArrayList<>();
-        while (clazz != null && !clazz.equals(Object.class)) {
-            fields.addAll(Arrays.asList(clazz.getDeclaredFields()));
-            clazz = clazz.getSuperclass();
+    private void handleDecrypt(Object obj) {
+        if (obj == null) {
+            return;
         }
-        return fields.toArray(new Field[0]);
+
+        Class<?> clazz = obj.getClass();
+        Field[] fields = clazz.getDeclaredFields();
+
+        for (Field field : fields) {
+            try {
+                Decrypt decrypt = field.getAnnotation(Decrypt.class);
+                Encrypt encrypt = field.getAnnotation(Encrypt.class);
+                if (decrypt != null && encrypt != null) {
+                    field.setAccessible(true);
+                    Object value = field.get(obj);
+                    if (value instanceof String) {
+                        String encryptedValue = (String) value;
+                        if (encryptedValue.contains("$")) {
+                            // 解析密钥类型和加密内容
+                            String keyType = encryptedValue.substring(1, encryptedValue.indexOf("$", 1));
+                            String actualValue = encryptedValue.substring(encryptedValue.indexOf("$", 1) + 1);
+                            // 使用对应的密钥进行解密
+                            String decryptedValue = cryptoUtil.decrypt(actualValue, keyType);
+                            field.set(obj, decryptedValue);
+                        }
+                    }
+                }
+            } catch (Exception e) {
+                log.error("Error decrypting field: " + field.getName(), e);
+            }
+        }
     }
 }
