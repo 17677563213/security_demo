@@ -5,10 +5,12 @@ import com.livelab.security.starter.annotation.Digest;
 import com.livelab.security.starter.annotation.Encrypt;
 import com.livelab.security.starter.core.CryptoUtil;
 import com.livelab.security.starter.util.DigestUtil;
+import com.baomidou.mybatisplus.core.metadata.IPage;
 import lombok.extern.slf4j.Slf4j;
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Around;
 import org.aspectj.lang.annotation.Aspect;
+import org.aspectj.lang.annotation.Pointcut;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
@@ -37,19 +39,30 @@ public class DataSecurityAspect {
     }
 
     /**
-     * 拦截MyBatis-Plus的Mapper方法，处理数据的加密、解密和摘要
-     * - 对insert和update方法的参数进行加密和摘要处理
-     * - 对查询结果进行解密处理
+     * 定义切点：同时拦截BaseMapper和IService的方法
+     * 包括：
+     * 1. BaseMapper接口的所有实现类的方法
+     * 2. IService接口的所有实现类的方法
+     */
+    @Pointcut("execution(* com.baomidou.mybatisplus.core.mapper.BaseMapper+.*(..)) || " +
+              "execution(* com.baomidou.mybatisplus.extension.service.IService+.*(..))")
+    public void dataSecurityPointcut() {}
+
+    /**
+     * 拦截MyBatis-Plus的Mapper和Service方法，处理数据的加密、解密和摘要
+     * - 对insert、save、update等写操作方法的参数进行加密和摘要处理
+     * - 对select、get、list等查询结果进行解密处理
      *
      * @param joinPoint 切点
      * @return 处理后的结果
      * @throws Throwable 处理过程中的异常
      */
-    @Around("execution(* com.baomidou.mybatisplus.core.mapper.BaseMapper+.*(..))")
-    public Object handleFind(ProceedingJoinPoint joinPoint) throws Throwable {
+    @Around("dataSecurityPointcut()")
+    public Object handleData(ProceedingJoinPoint joinPoint) throws Throwable {
         // 处理保存前的加密和摘要
-        String methodName = joinPoint.getSignature().getName();
-        if (methodName.startsWith("insert") || methodName.startsWith("update")) {
+        String methodName = joinPoint.getSignature().getName().toLowerCase();
+        // 处理写操作
+        if (isWriteOperation(methodName)) {
             Object[] args = joinPoint.getArgs();
             if (args != null && args.length > 0) {
                 Object param = args[0];
@@ -69,21 +82,51 @@ public class DataSecurityAspect {
         Object result = joinPoint.proceed();
 
         // 处理查询结果的解密
-        try {
-            if (result instanceof Collection) {
-                // 处理集合类型的结果
-                for (Object item : (Collection<?>) result) {
-                    handleDecrypt(item);
+        if (isReadOperation(methodName)) {
+            try {
+                if (result instanceof Collection) {
+                    // 处理集合类型的结果
+                    for (Object item : (Collection<?>) result) {
+                        handleDecrypt(item);
+                    }
+                } else if (result instanceof IPage) {
+                    // 处理分页查询结果
+                    IPage<?> page = (IPage<?>) result;
+                    for (Object item : page.getRecords()) {
+                        handleDecrypt(item);
+                    }
+                } else if (result != null) {
+                    // 处理单个对象的结果
+                    handleDecrypt(result);
                 }
-            } else if (result != null) {
-                // 处理单个对象的结果
-                handleDecrypt(result);
+            } catch (Exception e) {
+                log.error("Error processing result in security aspect", e);
             }
-        } catch (Exception e) {
-            log.error("Error processing result in security aspect", e);
         }
 
         return result;
+    }
+
+    /**
+     * 判断是否为写操作方法
+     */
+    private boolean isWriteOperation(String methodName) {
+        return methodName.startsWith("insert") ||
+               methodName.startsWith("update") ||
+               methodName.startsWith("save") ||
+               methodName.startsWith("add");
+    }
+
+    /**
+     * 判断是否为读操作方法
+     */
+    private boolean isReadOperation(String methodName) {
+        return methodName.startsWith("select") ||
+               methodName.startsWith("get") ||
+               methodName.startsWith("list") ||
+               methodName.startsWith("find") ||
+               methodName.startsWith("query") ||
+               methodName.startsWith("page");
     }
 
     /**
