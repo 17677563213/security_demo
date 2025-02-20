@@ -1,4 +1,3 @@
-com/livelab/user/config/DataSourceConfig.class
 com/livelab/user/UserApplication.class
 com/livelab/user/entity/User.class
 com/livelab/user/mapper/UserMapper.class
