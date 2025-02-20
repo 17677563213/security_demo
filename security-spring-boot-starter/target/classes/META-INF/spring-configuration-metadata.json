@@ -9,6 +9,11 @@
       "name": "security.crypto",
       "type": "com.livelab.security.starter.autoconfigure.SecurityProperties$CryptoProperties",
       "sourceType": "com.livelab.security.starter.autoconfigure.SecurityProperties"
+    },
+    {
+      "name": "security.digest",
+      "type": "com.livelab.security.starter.config.SecurityProperties",
+      "sourceType": "com.livelab.security.starter.config.SecurityProperties"
     }
   ],
   "properties": [
@@ -38,6 +43,20 @@
       "name": "security.crypto.phone-key",
       "type": "java.lang.String",
       "sourceType": "com.livelab.security.starter.autoconfigure.SecurityProperties$CryptoProperties"
+    },
+    {
+      "name": "security.digest.algorithm",
+      "type": "java.lang.String",
+      "description": "摘要算法类型",
+      "sourceType": "com.livelab.security.starter.config.SecurityProperties",
+      "defaultValue": "sm3"
+    },
+    {
+      "name": "security.digest.salt",
+      "type": "java.lang.String",
+      "description": "摘要算法盐值",
+      "sourceType": "com.livelab.security.starter.config.SecurityProperties",
+      "defaultValue": "liveLab2025"
     }
   ],
   "hints": []

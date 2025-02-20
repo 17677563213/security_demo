@@ -4,10 +4,12 @@ import com.livelab.security.starter.annotation.Decrypt;
 import com.livelab.security.starter.annotation.Digest;
 import com.livelab.security.starter.annotation.Encrypt;
 import com.livelab.security.starter.core.CryptoUtil;
+import com.livelab.security.starter.util.DigestUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Around;
 import org.aspectj.lang.annotation.Aspect;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 import org.springframework.util.DigestUtils;
@@ -27,9 +29,11 @@ import java.util.Collection;
 @Component
 public class DataSecurityAspect {
     private final CryptoUtil cryptoUtil;
+    private final DigestUtil digestUtil;
 
-    public DataSecurityAspect(CryptoUtil cryptoUtil) {
+    public DataSecurityAspect(CryptoUtil cryptoUtil, DigestUtil digestUtil) {
         this.cryptoUtil = cryptoUtil;
+        this.digestUtil = digestUtil;
     }
 
     /**
@@ -112,15 +116,15 @@ public class DataSecurityAspect {
                         field.set(obj, encryptedValue);
                     }
 
-                    // 处理摘要：生成MD5摘要并存储在对应的摘要字段中
+                    // 处理摘要：生成摘要并存储在对应的摘要字段中
                     Digest digest = field.getAnnotation(Digest.class);
                     if (digest != null) {
                         String digestFieldName = field.getName() + "Digest";
                         try {
                             Field digestField = clazz.getDeclaredField(digestFieldName);
                             digestField.setAccessible(true);
-                            String md5 = DigestUtils.md5DigestAsHex(strValue.getBytes());
-                            digestField.set(obj, md5);
+                            String digestValue = digestUtil.digest(strValue);
+                            digestField.set(obj, digestValue);
                         } catch (NoSuchFieldException e) {
                             log.error("No digest field found for: " + field.getName(), e);
                         }

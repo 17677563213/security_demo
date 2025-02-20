@@ -5,6 +5,7 @@ import com.livelab.security.starter.config.SecurityDataSourceConfig;
 import com.livelab.security.starter.core.CryptoUtil;
 import com.livelab.security.starter.core.KeyManager;
 import com.livelab.security.starter.mapper.SecurityKeyMapper;
+import com.livelab.security.starter.util.DigestUtil;
 import org.mybatis.spring.annotation.MapperScan;
 import org.springframework.boot.autoconfigure.AutoConfigureAfter;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
@@ -36,7 +37,13 @@ public class SecurityAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
-    public DataSecurityAspect dataSecurityAspect(CryptoUtil cryptoUtil) {
-        return new DataSecurityAspect(cryptoUtil);
+    public DigestUtil digestUtil() {
+        return new DigestUtil();
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public DataSecurityAspect dataSecurityAspect(CryptoUtil cryptoUtil, DigestUtil digestUtil) {
+        return new DataSecurityAspect(cryptoUtil, digestUtil);
     }
 }
