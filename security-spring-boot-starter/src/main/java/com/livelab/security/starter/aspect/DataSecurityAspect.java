@@ -245,11 +245,8 @@ public class DataSecurityAspect {
                     if (value instanceof String) {
                         String encryptedValue = (String) value;
                         if (encryptedValue.contains("$")) {
-                            // 解析密钥类型和加密内容
-                            String keyType = encryptedValue.substring(1, encryptedValue.indexOf("$", 1));
-                            String actualValue = encryptedValue.substring(encryptedValue.indexOf("$", 1) + 1);
                             // 使用对应的密钥进行解密
-                            String decryptedValue = cryptoUtil.decrypt(actualValue, Long.valueOf(keyType));
+                            String decryptedValue = cryptoUtil.decrypt(encryptedValue);
                             field.set(obj, decryptedValue);
                         }
                     }

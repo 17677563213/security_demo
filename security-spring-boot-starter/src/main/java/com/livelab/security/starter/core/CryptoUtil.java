@@ -114,13 +114,15 @@ public class CryptoUtil {
 
     /**
      * 使用SM4算法解密加密内容
-     * 
-     * @param encryptedContent Base64编码的加密内容
-     * @param keyIde 密钥ID，用于从密钥管理器获取对应的密钥
+     *
      * @return 解密后的明文，如果输入为空则直接返回输入值
      * @throws SecurityException 当解密过程发生错误时抛出
      */
-    public String decrypt(String encryptedContent, Long keyIde) {
+    public String decrypt(String encryptedValue) {
+        // 解析密钥类型和加密内容
+        Long keyIde = Long.valueOf(encryptedValue.substring(1, encryptedValue.indexOf("$", 1)));
+        String encryptedContent = encryptedValue.substring(encryptedValue.indexOf("$", 1) + 1);
+
         // 空值校验：如果加密内容为null或空字符串，直接返回原值
         if (encryptedContent == null || encryptedContent.isEmpty()) {
             return encryptedContent;
