@@ -64,20 +64,12 @@ public class CryptoUtil {
         }
     }
 
-    public String decrypt(String content) {
-        if (content == null || content.isEmpty() || !content.startsWith(SEPARATOR)) {
-            return content;
+    public String decrypt(String encryptedContent, String keyType) {
+        if (encryptedContent == null || encryptedContent.isEmpty()) {
+            return encryptedContent;
         }
 
         try {
-            String[] parts = content.split("\\" + SEPARATOR);
-            if (parts.length != 3) {
-                log.error("Invalid encrypted content format: {}", content);
-                throw new SecurityException("Invalid encrypted content format");
-            }
-
-            String keyType = parts[1];
-            String encryptedContent = parts[2];
             String key = keyManager.getKey(keyType);
             byte[] processedKey = processKey(key);
 
@@ -87,7 +79,7 @@ public class CryptoUtil {
             byte[] decrypted = cipher.doFinal(Base64.getDecoder().decode(encryptedContent));
             return new String(decrypted, StandardCharsets.UTF_8);
         } catch (Exception e) {
-            log.error("Decryption failed for content: {}", content, e);
+            log.error("Decryption failed for content: {}", encryptedContent, e);
             throw new SecurityException("Decryption failed", e);
         }
     }
