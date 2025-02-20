@@ -1,74 +1,117 @@
 package com.livelab.security.starter.core;
 
-import cn.hutool.core.codec.Base64;
-import cn.hutool.core.util.IdUtil;
-import cn.hutool.crypto.KeyUtil;
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
+import com.livelab.security.starter.autoconfigure.SecurityProperties;
+import com.livelab.security.starter.entity.SecurityKey;
+import com.livelab.security.starter.exception.SecurityException;
+import com.livelab.security.starter.mapper.SecurityKeyMapper;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.scheduling.annotation.Scheduled;
-import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.UUID;
 
 @Slf4j
-@Component
-@EnableScheduling
 public class KeyManager {
+    private final SecurityProperties properties;
     private final SecurityKeyMapper securityKeyMapper;
-    private final ConcurrentHashMap<String, SecurityKey> keyCache = new ConcurrentHashMap<>();
-    private volatile SecurityKey currentKey;
-    private final int keyExpireMinutes;
-
-    public KeyManager(SecurityKeyMapper securityKeyMapper, int keyExpireMinutes) {
+    private static final String GLOBAL_KEY_TYPE = "GLOBAL_KEY";
+    private static final long KEY_EXPIRE_MINUTES = 2L;
+    private volatile String currentKey;
+    
+    public KeyManager(SecurityProperties properties, SecurityKeyMapper securityKeyMapper) {
+        this.properties = properties;
         this.securityKeyMapper = securityKeyMapper;
-        this.keyExpireMinutes = keyExpireMinutes;
     }
 
-    public SecurityKey getCurrentKey() {
-        SecurityKey key = securityKeyMapper.selectLatestKey();
-        if (key != null && key.getExpiryTime().isAfter(LocalDateTime.now())) {
-            return key;
-        }
-
-        return generateNewKey();
-    }
-
-    public SecurityKey getKeyById(String keyId) {
-        SecurityKey key = keyCache.get(keyId);
-        if (key == null) {
-            key = securityKeyMapper.selectById(keyId);
-            if (key != null) {
-                keyCache.put(keyId, key);
+    @Transactional
+    public String getKey(String keyType) {
+        // 不再区分keyType，统一使用全局密钥
+        if (currentKey != null) {
+            // 检查当前密钥是否在数据库中仍然有效
+            SecurityKey securityKey = securityKeyMapper.selectOne(
+                new LambdaQueryWrapper<SecurityKey>()
+                    .eq(SecurityKey::getKeyType, GLOBAL_KEY_TYPE)
+                    .eq(SecurityKey::getKeyValue, currentKey)
+                    .eq(SecurityKey::getStatus, 1)
+                    .le(SecurityKey::getEffectiveTime, LocalDateTime.now())
+                    .ge(SecurityKey::getExpiryTime, LocalDateTime.now())
+                    .last("LIMIT 1")
+            );
+            if (securityKey != null) {
+                return currentKey;
             }
         }
-        return key;
+
+        // 从数据库获取最新的有效密钥
+        SecurityKey securityKey = securityKeyMapper.selectOne(
+            new LambdaQueryWrapper<SecurityKey>()
+                .eq(SecurityKey::getKeyType, GLOBAL_KEY_TYPE)
+                .eq(SecurityKey::getStatus, 1)
+                .le(SecurityKey::getEffectiveTime, LocalDateTime.now())
+                .ge(SecurityKey::getExpiryTime, LocalDateTime.now())
+                .orderByDesc(SecurityKey::getId)
+                .last("LIMIT 1")
+        );
+
+        if (securityKey != null) {
+            currentKey = securityKey.getKeyValue();
+            return currentKey;
+        }
+
+        // 如果没有有效的密钥，生成新密钥
+        return generateAndSaveNewKey();
     }
 
-    private SecurityKey generateNewKey() {
-        byte[] keyBytes = KeyUtil.generateKey("SM4").getEncoded();
-        String keyValue = Base64.encode(keyBytes);
+    @Transactional
+    public String generateAndSaveNewKey() {
+        String newKey = UUID.randomUUID().toString().replace("-", "");
+        SecurityKey securityKey = new SecurityKey();
+        securityKey.setKeyType(GLOBAL_KEY_TYPE);
+        securityKey.setKeyValue(newKey);
+        securityKey.setStatus(1);
+        securityKey.setEffectiveTime(LocalDateTime.now());
+        securityKey.setExpiryTime(LocalDateTime.now().plusMinutes(KEY_EXPIRE_MINUTES));
+        securityKey.setCreateTime(LocalDateTime.now());
+        securityKey.setUpdateTime(LocalDateTime.now());
         
-        SecurityKey key = new SecurityKey();
-        key.setId(IdUtil.fastSimpleUUID());
-        key.setKeyValue(keyValue);
-        key.setCreateTime(LocalDateTime.now());
-        key.setExpiryTime(LocalDateTime.now().plusMinutes(keyExpireMinutes));
-        key.setStatus(1);
-        securityKeyMapper.insert(key);
-        log.info("Generated new key: {}", key.getId());
-        return key;
+        securityKeyMapper.insert(securityKey);
+        currentKey = newKey;
+        return newKey;
     }
 
     @Scheduled(fixedRate = 60000) // 每分钟执行一次
+    @Transactional
     public void cleanExpiredKeys() {
         try {
-            securityKeyMapper.deleteExpiredKeys();
-            // 清理缓存中的过期密钥
-            keyCache.entrySet().removeIf(entry -> entry.getValue().getExpiryTime().isBefore(LocalDateTime.now()));
-            log.debug("Cleaned expired keys");
+            log.info("Starting to clean expired keys...");
+            
+            // 将过期的密钥状态更新为失效
+            LambdaUpdateWrapper<SecurityKey> updateWrapper = new LambdaUpdateWrapper<>();
+            updateWrapper.set(SecurityKey::getStatus, 0)
+                        .set(SecurityKey::getUpdateTime, LocalDateTime.now())
+                        .eq(SecurityKey::getStatus, 1)
+                        .lt(SecurityKey::getExpiryTime, LocalDateTime.now());
+            
+            int updatedCount = securityKeyMapper.update(null, updateWrapper);
+            log.info("Cleaned {} expired keys", updatedCount);
+            
+            // 如果当前密钥已过期，生成新密钥
+            if (currentKey != null) {
+                SecurityKey currentKeyInfo = securityKeyMapper.selectOne(
+                    new LambdaQueryWrapper<SecurityKey>()
+                        .eq(SecurityKey::getKeyType, GLOBAL_KEY_TYPE)
+                        .eq(SecurityKey::getKeyValue, currentKey)
+                        .eq(SecurityKey::getStatus, 1)
+                );
+                if (currentKeyInfo == null || currentKeyInfo.getExpiryTime().isBefore(LocalDateTime.now())) {
+                    generateAndSaveNewKey();
+                }
+            }
         } catch (Exception e) {
-            log.error("Failed to clean expired keys", e);
+            log.error("Error while cleaning expired keys", e);
         }
     }
 }
