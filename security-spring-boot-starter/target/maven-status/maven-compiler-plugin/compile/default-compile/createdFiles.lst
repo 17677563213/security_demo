@@ -8,7 +8,6 @@ com/livelab/security/starter/annotation/Decrypt.class
 com/livelab/security/starter/autoconfigure/SecurityAutoConfiguration.class
 com/livelab/security/starter/annotation/Mask.class
 com/livelab/security/starter/annotation/Mask$MaskType.class
-com/livelab/security/starter/config/SecurityProperties.class
 com/livelab/security/starter/exception/SecurityException.class
 com/livelab/security/starter/model/KeyInfo.class
 com/livelab/security/starter/mapper/SecurityKeyMapper.class
