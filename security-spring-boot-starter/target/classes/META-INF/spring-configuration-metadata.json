@@ -15,28 +15,11 @@
     {
       "name": "security.crypto.algorithm",
       "type": "java.lang.String",
-      "sourceType": "com.livelab.security.starter.autoconfigure.SecurityProperties$CryptoProperties",
-      "defaultValue": "SM4"
-    },
-    {
-      "name": "security.crypto.email-key",
-      "type": "java.lang.String",
-      "sourceType": "com.livelab.security.starter.autoconfigure.SecurityProperties$CryptoProperties"
-    },
-    {
-      "name": "security.crypto.id-card-key",
-      "type": "java.lang.String",
       "sourceType": "com.livelab.security.starter.autoconfigure.SecurityProperties$CryptoProperties"
     },
     {
       "name": "security.crypto.key-expire-minutes",
       "type": "java.lang.Integer",
-      "sourceType": "com.livelab.security.starter.autoconfigure.SecurityProperties$CryptoProperties",
-      "defaultValue": 30
-    },
-    {
-      "name": "security.crypto.phone-key",
-      "type": "java.lang.String",
       "sourceType": "com.livelab.security.starter.autoconfigure.SecurityProperties$CryptoProperties"
     }
   ],

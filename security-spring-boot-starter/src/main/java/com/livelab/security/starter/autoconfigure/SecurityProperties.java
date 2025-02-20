@@ -10,23 +10,8 @@ public class SecurityProperties {
 
     @Data
     public static class CryptoProperties {
-        private String phoneKey;
-        private String emailKey;
-        private String idCardKey;
         private String algorithm = "SM4";
         private int keyExpireMinutes = 30;
-    }
-
-    public String getPhoneKey() {
-        return crypto.getPhoneKey();
-    }
-
-    public String getEmailKey() {
-        return crypto.getEmailKey();
-    }
-
-    public String getIdCardKey() {
-        return crypto.getIdCardKey();
     }
 
     public int getKeyExpireMinutes() {
