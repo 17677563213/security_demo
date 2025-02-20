@@ -27,7 +27,7 @@ public class KeyManager {
     }
 
     @Transactional
-    public String getKey(String keyType) {
+    public KeyInfo getKeyInfo() {
         // 不再区分keyType，统一使用全局密钥
         if (currentKey != null) {
             // 检查当前密钥是否在数据库中仍然有效
@@ -41,7 +41,7 @@ public class KeyManager {
                     .last("LIMIT 1")
             );
             if (securityKey != null) {
-                return currentKey;
+                return new KeyInfo(securityKey.getId(), currentKey);
             }
         }
 
@@ -58,15 +58,26 @@ public class KeyManager {
 
         if (securityKey != null) {
             currentKey = securityKey.getKeyValue();
-            return currentKey;
+            return new KeyInfo(securityKey.getId(), currentKey);
         }
 
         // 如果没有有效的密钥，生成新密钥
-        return generateAndSaveNewKey();
+        SecurityKey newKey = generateAndSaveNewKey();
+        return new KeyInfo(newKey.getId(), newKey.getKeyValue());
+    }
+
+
+    public String getKeyValueById(Long id) {
+        SecurityKey securityKey = securityKeyMapper.selectOne(
+                new LambdaQueryWrapper<SecurityKey>()
+                        .eq(SecurityKey::getId, id)
+                        .select(SecurityKey::getKeyValue)
+        );
+        return securityKey.getKeyValue();
     }
 
     @Transactional
-    public String generateAndSaveNewKey() {
+    public SecurityKey generateAndSaveNewKey() {
         String newKey = UUID.randomUUID().toString().replace("-", "");
         SecurityKey securityKey = new SecurityKey();
         securityKey.setKeyType(GLOBAL_KEY_TYPE);
@@ -79,7 +90,7 @@ public class KeyManager {
         
         securityKeyMapper.insert(securityKey);
         currentKey = newKey;
-        return newKey;
+        return securityKey;
     }
 
     @Scheduled(fixedRate = 60000) // 每分钟执行一次
@@ -113,5 +124,23 @@ public class KeyManager {
         } catch (Exception e) {
             log.error("Error while cleaning expired keys", e);
         }
+    }
+}
+
+class KeyInfo {
+    private Long id;
+    private String keyValue;
+
+    public KeyInfo(Long id, String keyValue) {
+        this.id = id;
+        this.keyValue = keyValue;
+    }
+
+    public Long getId() {
+        return id;
+    }
+
+    public String getKeyValue() {
+        return keyValue;
     }
 }

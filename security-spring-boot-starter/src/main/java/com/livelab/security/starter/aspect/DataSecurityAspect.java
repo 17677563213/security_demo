@@ -108,7 +108,7 @@ public class DataSecurityAspect {
                     // 处理加密：使用@Encrypt注解指定的密钥类型进行加密
                     Encrypt encrypt = field.getAnnotation(Encrypt.class);
                     if (encrypt != null) {
-                        String encryptedValue = cryptoUtil.encrypt(strValue, encrypt.keyType());
+                        String encryptedValue = cryptoUtil.encrypt(strValue);
                         field.set(obj, encryptedValue);
                     }
 
@@ -165,7 +165,7 @@ public class DataSecurityAspect {
                             String keyType = encryptedValue.substring(1, encryptedValue.indexOf("$", 1));
                             String actualValue = encryptedValue.substring(encryptedValue.indexOf("$", 1) + 1);
                             // 使用对应的密钥进行解密
-                            String decryptedValue = cryptoUtil.decrypt(actualValue, keyType);
+                            String decryptedValue = cryptoUtil.decrypt(actualValue, Long.valueOf(keyType));
                             field.set(obj, decryptedValue);
                         }
                     }

@@ -45,32 +45,32 @@ public class CryptoUtil {
         return processedKey;
     }
 
-    public String encrypt(String content, String keyType) {
+    public String encrypt(String content) {
         if (content == null || content.isEmpty()) {
             return content;
         }
 
         try {
-            String key = keyManager.getKey(keyType);
-            byte[] processedKey = processKey(key);
+            KeyInfo keyInfo = keyManager.getKeyInfo();
+            byte[] processedKey = processKey(keyInfo.getKeyValue());
             SecretKeySpec skeySpec = new SecretKeySpec(processedKey, "SM4");
             Cipher cipher = Cipher.getInstance("SM4/ECB/PKCS5Padding", "BC");
             cipher.init(Cipher.ENCRYPT_MODE, skeySpec);
             byte[] encrypted = cipher.doFinal(content.getBytes(StandardCharsets.UTF_8));
-            return SEPARATOR + keyType + SEPARATOR + Base64.getEncoder().encodeToString(encrypted);
+            return SEPARATOR + keyInfo.getId() + SEPARATOR + Base64.getEncoder().encodeToString(encrypted);
         } catch (Exception e) {
-            log.error("Encryption failed for content with keyType: {}", keyType, e);
+
             throw new SecurityException("Encryption failed", e);
         }
     }
 
-    public String decrypt(String encryptedContent, String keyType) {
+    public String decrypt(String encryptedContent, Long keyIde) {
         if (encryptedContent == null || encryptedContent.isEmpty()) {
             return encryptedContent;
         }
 
         try {
-            String key = keyManager.getKey(keyType);
+            String key = keyManager.getKeyValueById(keyIde);
             byte[] processedKey = processKey(key);
 
             SecretKeySpec skeySpec = new SecretKeySpec(processedKey, "SM4");
