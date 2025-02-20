@@ -19,7 +19,7 @@ public class KeyManager {
     private final SecurityKeyMapper securityKeyMapper;
     private static final String GLOBAL_KEY_TYPE = "GLOBAL_KEY";
     private static final long KEY_EXPIRE_MINUTES = 2L;
-    private volatile String currentKey;
+    private volatile Long currentKeyId;
     
     public KeyManager(SecurityProperties properties, SecurityKeyMapper securityKeyMapper) {
         this.properties = properties;
@@ -27,25 +27,21 @@ public class KeyManager {
     }
 
     @Transactional
-    public String getKey(String keyType) {
-        // 不再区分keyType，统一使用全局密钥
-        if (currentKey != null) {
-            // 检查当前密钥是否在数据库中仍然有效
+    public SecurityKey getCurrentKey() {
+        if (currentKeyId != null) {
             SecurityKey securityKey = securityKeyMapper.selectOne(
                 new LambdaQueryWrapper<SecurityKey>()
+                    .eq(SecurityKey::getId, currentKeyId)
                     .eq(SecurityKey::getKeyType, GLOBAL_KEY_TYPE)
-                    .eq(SecurityKey::getKeyValue, currentKey)
                     .eq(SecurityKey::getStatus, 1)
                     .le(SecurityKey::getEffectiveTime, LocalDateTime.now())
                     .ge(SecurityKey::getExpiryTime, LocalDateTime.now())
-                    .last("LIMIT 1")
             );
             if (securityKey != null) {
-                return currentKey;
+                return securityKey;
             }
         }
 
-        // 从数据库获取最新的有效密钥
         SecurityKey securityKey = securityKeyMapper.selectOne(
             new LambdaQueryWrapper<SecurityKey>()
                 .eq(SecurityKey::getKeyType, GLOBAL_KEY_TYPE)
@@ -57,16 +53,29 @@ public class KeyManager {
         );
 
         if (securityKey != null) {
-            currentKey = securityKey.getKeyValue();
-            return currentKey;
+            currentKeyId = securityKey.getId();
+            return securityKey;
         }
 
-        // 如果没有有效的密钥，生成新密钥
         return generateAndSaveNewKey();
     }
 
     @Transactional
-    public String generateAndSaveNewKey() {
+    public SecurityKey getKeyById(Long keyId) {
+        SecurityKey key = securityKeyMapper.selectOne(
+            new LambdaQueryWrapper<SecurityKey>()
+                .eq(SecurityKey::getId, keyId)
+                .eq(SecurityKey::getKeyType, GLOBAL_KEY_TYPE)
+                .eq(SecurityKey::getStatus, 1)
+        );
+        if (key == null) {
+            throw new SecurityException("Key not found with id: " + keyId);
+        }
+        return key;
+    }
+
+    @Transactional
+    public SecurityKey generateAndSaveNewKey() {
         String newKey = UUID.randomUUID().toString().replace("-", "");
         SecurityKey securityKey = new SecurityKey();
         securityKey.setKeyType(GLOBAL_KEY_TYPE);
@@ -78,8 +87,9 @@ public class KeyManager {
         securityKey.setUpdateTime(LocalDateTime.now());
         
         securityKeyMapper.insert(securityKey);
-        currentKey = newKey;
-        return newKey;
+        log.info("Generated new key with id: {}", securityKey.getId());
+        currentKeyId = securityKey.getId();
+        return securityKey;
     }
 
     @Scheduled(fixedRate = 60000) // 每分钟执行一次
@@ -99,11 +109,10 @@ public class KeyManager {
             log.info("Cleaned {} expired keys", updatedCount);
             
             // 如果当前密钥已过期，生成新密钥
-            if (currentKey != null) {
+            if (currentKeyId != null) {
                 SecurityKey currentKeyInfo = securityKeyMapper.selectOne(
                     new LambdaQueryWrapper<SecurityKey>()
-                        .eq(SecurityKey::getKeyType, GLOBAL_KEY_TYPE)
-                        .eq(SecurityKey::getKeyValue, currentKey)
+                        .eq(SecurityKey::getId, currentKeyId)
                         .eq(SecurityKey::getStatus, 1)
                 );
                 if (currentKeyInfo == null || currentKeyInfo.getExpiryTime().isBefore(LocalDateTime.now())) {

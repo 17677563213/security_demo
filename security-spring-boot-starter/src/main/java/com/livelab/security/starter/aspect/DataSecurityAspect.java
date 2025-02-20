@@ -108,7 +108,7 @@ public class DataSecurityAspect {
                     // 处理加密：使用@Encrypt注解指定的密钥类型进行加密
                     Encrypt encrypt = field.getAnnotation(Encrypt.class);
                     if (encrypt != null) {
-                        String encryptedValue = cryptoUtil.encrypt(strValue, encrypt.keyType());
+                        String encryptedValue = encryptField(strValue, encrypt.keyType());
                         field.set(obj, encryptedValue);
                     }
 
@@ -130,6 +130,13 @@ public class DataSecurityAspect {
                 log.error("Error processing field: " + field.getName(), e);
             }
         }
+    }
+
+    private String encryptField(String content, String keyType) {
+        if (content == null || content.isEmpty()) {
+            return content;
+        }
+        return cryptoUtil.encrypt(content);
     }
 
     /**
@@ -165,7 +172,7 @@ public class DataSecurityAspect {
                             String keyType = encryptedValue.substring(1, encryptedValue.indexOf("$", 1));
                             String actualValue = encryptedValue.substring(encryptedValue.indexOf("$", 1) + 1);
                             // 使用对应的密钥进行解密
-                            String decryptedValue = cryptoUtil.decrypt(actualValue, keyType);
+                            String decryptedValue = decryptField(actualValue, keyType);
                             field.set(obj, decryptedValue);
                         }
                     }
@@ -174,5 +181,12 @@ public class DataSecurityAspect {
                 log.error("Error decrypting field: " + field.getName(), e);
             }
         }
+    }
+
+    private String decryptField(String content, String keyType) {
+        if (content == null || content.isEmpty()) {
+            return content;
+        }
+        return cryptoUtil.decrypt(content);
     }
 }
