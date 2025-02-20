@@ -41,54 +41,26 @@ public class UserController {
     public ApiResponse<User> getById(@PathVariable Long id) {
         return ApiResponse.success(userService.getById(id));
     }
-
-    @PostMapping("/batch-save")
-    public ApiResponse<List<User>> batchSave() {
-        User user1 = new User();
-        user1.setUsername("李四");
-        user1.setPhone("13888888888");
-        user1.setEmail("lisi@example.com");
-        user1.setIdCard("310000199001011235");
-        user1.setPassword("123456");
-        user1.setDeleted(0);
-        user1.setStatus(1);
-        user1.setCreateTime(LocalDateTime.now());
-        user1.setUpdateTime(LocalDateTime.now());
-
-        User user2 = new User();
-        user2.setUsername("王五");
-        user2.setPhone("13888888888");
-        user2.setEmail("wangwu@example.com");
-        user2.setIdCard("310000199001011236");
-        user2.setPassword("123456");
-        user2.setDeleted(0);
-        user2.setStatus(1);
-        user2.setCreateTime(LocalDateTime.now());
-        user2.setUpdateTime(LocalDateTime.now());
-
-        List<User> users = Arrays.asList(user1, user2);
-        userService.saveBatch(users);
-        return ApiResponse.success(users);
-    }
+    
 
     @GetMapping("/list")
     public ApiResponse<List<User>> list() {
         return ApiResponse.success(userService.list());
     }
 
-    @GetMapping("/by-phone")
-    public ApiResponse<User> getByPhone(@RequestParam String phone) {
+    @GetMapping("/phone/{phone}")
+    public ApiResponse<User> getByPhone(@PathVariable String phone) {
         log.info("Querying user by phone: {}", phone);
         return ApiResponse.success(userService.getByPhone(phone));
     }
 
-    @GetMapping("/by-email")
-    public ApiResponse<User> getByEmail(@RequestParam String email) {
+    @GetMapping("/email/{email}")
+    public ApiResponse<User> getByEmail(@PathVariable String email) {
         return ApiResponse.success(userService.getByEmail(email));
     }
 
-    @GetMapping("/by-idcard")
-    public ApiResponse<User> getByIdCard(@RequestParam String idCard) {
+    @GetMapping("/idCard/{idCard}")
+    public ApiResponse<User> getByIdCard(@PathVariable String idCard) {
         return ApiResponse.success(userService.getByIdCard(idCard));
     }
 }
