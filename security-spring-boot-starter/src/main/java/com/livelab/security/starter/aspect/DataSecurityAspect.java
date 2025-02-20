@@ -18,6 +18,7 @@ import org.springframework.util.DigestUtils;
 
 import java.lang.reflect.Field;
 import java.util.Collection;
+import java.util.Map;
 
 /**
  * 数据安全切面，处理数据的加密、解密和摘要
@@ -39,19 +40,23 @@ public class DataSecurityAspect {
     }
 
     /**
-     * 定义切点：同时拦截BaseMapper和IService的方法
+     * 定义切点：拦截所有Mapper接口和Service接口的方法
      * 包括：
      * 1. BaseMapper接口的所有实现类的方法
      * 2. IService接口的所有实现类的方法
+     * 3. 自定义Mapper接口中的方法（XML中实现的SQL）
      */
     @Pointcut("execution(* com.baomidou.mybatisplus.core.mapper.BaseMapper+.*(..)) || " +
-              "execution(* com.baomidou.mybatisplus.extension.service.IService+.*(..))")
+              "execution(* com.baomidou.mybatisplus.extension.service.IService+.*(..)) || " +
+              "execution(* com.livelab..*.mapper.*Mapper.*(..))")
     public void dataSecurityPointcut() {}
 
     /**
-     * 拦截MyBatis-Plus的Mapper和Service方法，处理数据的加密、解密和摘要
+     * 拦截MyBatis-Plus的Mapper和Service方法，以及自定义Mapper方法
+     * 处理数据的加密、解密和摘要
      * - 对insert、save、update等写操作方法的参数进行加密和摘要处理
      * - 对select、get、list等查询结果进行解密处理
+     * - 对自定义方法根据方法名判断是读操作还是写操作
      *
      * @param joinPoint 切点
      * @return 处理后的结果
@@ -61,19 +66,24 @@ public class DataSecurityAspect {
     public Object handleData(ProceedingJoinPoint joinPoint) throws Throwable {
         // 处理保存前的加密和摘要
         String methodName = joinPoint.getSignature().getName().toLowerCase();
+        Class<?> declaringType = joinPoint.getSignature().getDeclaringType();
+        
         // 处理写操作
         if (isWriteOperation(methodName)) {
             Object[] args = joinPoint.getArgs();
             if (args != null && args.length > 0) {
-                Object param = args[0];
-                if (param instanceof Collection) {
-                    // 处理批量操作
-                    for (Object item : (Collection<?>) param) {
-                        handleEncryptAndDigest(item);
+                // 处理每个参数
+                for (Object arg : args) {
+                    if (arg instanceof Collection) {
+                        // 处理批量操作
+                        for (Object item : (Collection<?>) arg) {
+                            handleEncryptAndDigest(item);
+                        }
+                    } else if (arg != null && !arg.getClass().isPrimitive() && 
+                             !arg.getClass().getName().startsWith("java.lang")) {
+                        // 处理非基本类型的参数
+                        handleEncryptAndDigest(arg);
                     }
-                } else {
-                    // 处理单个对象
-                    handleEncryptAndDigest(param);
                 }
             }
         }
@@ -95,16 +105,37 @@ public class DataSecurityAspect {
                     for (Object item : page.getRecords()) {
                         handleDecrypt(item);
                     }
-                } else if (result != null) {
-                    // 处理单个对象的结果
+                } else if (result instanceof Map) {
+                    // 处理Map类型的结果
+                    handleMapResult((Map<?, ?>) result);
+                } else if (result != null && !result.getClass().isPrimitive() && 
+                          !result.getClass().getName().startsWith("java.lang")) {
+                    // 处理非基本类型的结果
                     handleDecrypt(result);
                 }
             } catch (Exception e) {
-                log.error("Error processing result in security aspect", e);
+                log.error("Error processing result in security aspect: {}", e.getMessage());
             }
         }
 
         return result;
+    }
+
+    /**
+     * 处理Map类型的结果
+     * @param map 需要处理的Map结果
+     */
+    private void handleMapResult(Map<?, ?> map) {
+        for (Object value : map.values()) {
+            if (value instanceof Collection) {
+                for (Object item : (Collection<?>) value) {
+                    handleDecrypt(item);
+                }
+            } else if (value != null && !value.getClass().isPrimitive() && 
+                      !value.getClass().getName().startsWith("java.lang")) {
+                handleDecrypt(value);
+            }
+        }
     }
 
     /**
@@ -114,7 +145,11 @@ public class DataSecurityAspect {
         return methodName.startsWith("insert") ||
                methodName.startsWith("update") ||
                methodName.startsWith("save") ||
-               methodName.startsWith("add");
+               methodName.startsWith("add") ||
+               methodName.startsWith("modify") ||
+               methodName.startsWith("create") ||
+               methodName.startsWith("batch") ||
+               methodName.startsWith("delete"); // 删除操作可能需要加密的查询条件
     }
 
     /**
@@ -126,6 +161,8 @@ public class DataSecurityAspect {
                methodName.startsWith("list") ||
                methodName.startsWith("find") ||
                methodName.startsWith("query") ||
+               methodName.startsWith("search") ||
+               methodName.startsWith("count") ||
                methodName.startsWith("page");
     }
 
