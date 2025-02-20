@@ -17,14 +17,7 @@
         id, key_type, key_value, effective_time, expiry_time, status, create_time, update_time
     </sql>
 
-    <select id="selectByKeyType" resultMap="BaseResultMap">
-        select
-        <include refid="Base_Column_List"/>
-        from security_key
-        where key_type = #{keyType} and status = 1
-        order by create_time desc
-        limit 1
-    </select>
+
 
     <insert id="insert" parameterType="com.livelab.security.starter.entity.SecurityKey">
         insert into security_key (key_type, key_value, effective_time, expiry_time, status, create_time, update_time)
