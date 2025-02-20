@@ -47,20 +47,4 @@ public class UserController {
     public ApiResponse<List<User>> list() {
         return ApiResponse.success(userService.list());
     }
-
-    @GetMapping("/phone/{phone}")
-    public ApiResponse<User> getByPhone(@PathVariable String phone) {
-        log.info("Querying user by phone: {}", phone);
-        return ApiResponse.success(userService.getByPhone(phone));
-    }
-
-    @GetMapping("/email/{email}")
-    public ApiResponse<User> getByEmail(@PathVariable String email) {
-        return ApiResponse.success(userService.getByEmail(email));
-    }
-
-    @GetMapping("/idCard/{idCard}")
-    public ApiResponse<User> getByIdCard(@PathVariable String idCard) {
-        return ApiResponse.success(userService.getByIdCard(idCard));
-    }
 }
