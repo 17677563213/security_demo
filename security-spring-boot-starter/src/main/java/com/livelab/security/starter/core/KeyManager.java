@@ -11,30 +11,44 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.UUID;
 
 @Slf4j
 public class KeyManager {
     private final SecurityProperties properties;
     private final SecurityKeyMapper securityKeyMapper;
-    private final ConcurrentHashMap<String, String> keyCache = new ConcurrentHashMap<>();
+    private static final String GLOBAL_KEY_TYPE = "GLOBAL_KEY";
+    private static final long KEY_EXPIRE_MINUTES = 2L;
+    private volatile String currentKey;
     
     public KeyManager(SecurityProperties properties, SecurityKeyMapper securityKeyMapper) {
         this.properties = properties;
         this.securityKeyMapper = securityKeyMapper;
     }
 
+    @Transactional
     public String getKey(String keyType) {
-        // 首先从缓存获取
-        String cachedKey = keyCache.get(keyType);
-        if (cachedKey != null) {
-            return cachedKey;
+        // 不再区分keyType，统一使用全局密钥
+        if (currentKey != null) {
+            // 检查当前密钥是否在数据库中仍然有效
+            SecurityKey securityKey = securityKeyMapper.selectOne(
+                new LambdaQueryWrapper<SecurityKey>()
+                    .eq(SecurityKey::getKeyType, GLOBAL_KEY_TYPE)
+                    .eq(SecurityKey::getKeyValue, currentKey)
+                    .eq(SecurityKey::getStatus, 1)
+                    .le(SecurityKey::getEffectiveTime, LocalDateTime.now())
+                    .ge(SecurityKey::getExpiryTime, LocalDateTime.now())
+                    .last("LIMIT 1")
+            );
+            if (securityKey != null) {
+                return currentKey;
+            }
         }
 
-        // 从数据库获取有效的密钥
+        // 从数据库获取最新的有效密钥
         SecurityKey securityKey = securityKeyMapper.selectOne(
             new LambdaQueryWrapper<SecurityKey>()
-                .eq(SecurityKey::getKeyType, keyType)
+                .eq(SecurityKey::getKeyType, GLOBAL_KEY_TYPE)
                 .eq(SecurityKey::getStatus, 1)
                 .le(SecurityKey::getEffectiveTime, LocalDateTime.now())
                 .ge(SecurityKey::getExpiryTime, LocalDateTime.now())
@@ -43,47 +57,29 @@ public class KeyManager {
         );
 
         if (securityKey != null) {
-            keyCache.put(keyType, securityKey.getKeyValue());
-            return securityKey.getKeyValue();
+            currentKey = securityKey.getKeyValue();
+            return currentKey;
         }
 
-        // 如果数据库中没有有效的密钥，则使用配置文件中的密钥
-        String configKey = getKeyFromConfig(keyType);
-        if (configKey != null) {
-            // 将配置文件中的密钥保存到数据库
-            saveKeyToDatabase(keyType, configKey);
-            keyCache.put(keyType, configKey);
-            return configKey;
-        }
-
-        throw new SecurityException("No valid key found for type: " + keyType);
-    }
-
-    private String getKeyFromConfig(String keyType) {
-        switch (keyType) {
-            case "PHONE_KEY":
-                return properties.getPhoneKey();
-            case "EMAIL_KEY":
-                return properties.getEmailKey();
-            case "ID_CARD_KEY":
-                return properties.getIdCardKey();
-            default:
-                return null;
-        }
+        // 如果没有有效的密钥，生成新密钥
+        return generateAndSaveNewKey();
     }
 
     @Transactional
-    public void saveKeyToDatabase(String keyType, String keyValue) {
+    public String generateAndSaveNewKey() {
+        String newKey = UUID.randomUUID().toString().replace("-", "");
         SecurityKey securityKey = new SecurityKey();
-        securityKey.setKeyType(keyType);
-        securityKey.setKeyValue(keyValue);
+        securityKey.setKeyType(GLOBAL_KEY_TYPE);
+        securityKey.setKeyValue(newKey);
         securityKey.setStatus(1);
         securityKey.setEffectiveTime(LocalDateTime.now());
-        securityKey.setExpiryTime(LocalDateTime.now().plusMinutes(properties.getKeyExpireMinutes()));
+        securityKey.setExpiryTime(LocalDateTime.now().plusMinutes(KEY_EXPIRE_MINUTES));
         securityKey.setCreateTime(LocalDateTime.now());
         securityKey.setUpdateTime(LocalDateTime.now());
         
         securityKeyMapper.insert(securityKey);
+        currentKey = newKey;
+        return newKey;
     }
 
     @Scheduled(fixedRate = 60000) // 每分钟执行一次
@@ -91,9 +87,6 @@ public class KeyManager {
     public void cleanExpiredKeys() {
         try {
             log.info("Starting to clean expired keys...");
-            
-            // 清理过期的缓存
-            keyCache.clear();
             
             // 将过期的密钥状态更新为失效
             LambdaUpdateWrapper<SecurityKey> updateWrapper = new LambdaUpdateWrapper<>();
@@ -105,6 +98,18 @@ public class KeyManager {
             int updatedCount = securityKeyMapper.update(null, updateWrapper);
             log.info("Cleaned {} expired keys", updatedCount);
             
+            // 如果当前密钥已过期，生成新密钥
+            if (currentKey != null) {
+                SecurityKey currentKeyInfo = securityKeyMapper.selectOne(
+                    new LambdaQueryWrapper<SecurityKey>()
+                        .eq(SecurityKey::getKeyType, GLOBAL_KEY_TYPE)
+                        .eq(SecurityKey::getKeyValue, currentKey)
+                        .eq(SecurityKey::getStatus, 1)
+                );
+                if (currentKeyInfo == null || currentKeyInfo.getExpiryTime().isBefore(LocalDateTime.now())) {
+                    generateAndSaveNewKey();
+                }
+            }
         } catch (Exception e) {
             log.error("Error while cleaning expired keys", e);
         }
