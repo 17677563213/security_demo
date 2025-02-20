@@ -65,12 +65,6 @@ public class UserController {
         return ApiResponse.success(users);
     }
 
-    @GetMapping("/list")
-    public ApiResponse<List<User>> testList() {
-        List<User> users = userService.list();
-        return ApiResponse.success(users);
-    }
-
     @GetMapping("/query-by-phone")
     public ApiResponse<User> testQueryByPhone(@RequestParam String phone) {
         log.info("Received request to query user by phone: {}", phone);
