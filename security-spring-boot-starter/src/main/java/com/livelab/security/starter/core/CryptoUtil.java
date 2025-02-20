@@ -1,6 +1,5 @@
 package com.livelab.security.starter.core;
 
-import com.livelab.security.starter.entity.SecurityKey;
 import com.livelab.security.starter.exception.SecurityException;
 import lombok.extern.slf4j.Slf4j;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
@@ -9,12 +8,13 @@ import javax.crypto.Cipher;
 import javax.crypto.spec.SecretKeySpec;
 import java.nio.charset.StandardCharsets;
 import java.security.Security;
+import java.util.Arrays;
 import java.util.Base64;
 
 @Slf4j
 public class CryptoUtil {
-    private static final String ALGORITHM = "SM4/ECB/PKCS5Padding";
-    private static final String SEPARATOR = ":";
+    private static final String SEPARATOR = "$";
+    private static final int SM4_KEY_LENGTH = 16; // SM4 requires 128-bit (16-byte) key
     private final KeyManager keyManager;
 
     static {
@@ -25,53 +25,62 @@ public class CryptoUtil {
         this.keyManager = keyManager;
     }
 
-    public String encrypt(String content) {
-        try {
-            SecurityKey currentKey = keyManager.getCurrentKey();
-            Cipher cipher = Cipher.getInstance(ALGORITHM, "BC");
-            SecretKeySpec keySpec = new SecretKeySpec(currentKey.getKeyValue().getBytes(StandardCharsets.UTF_8), "SM4");
-            cipher.init(Cipher.ENCRYPT_MODE, keySpec);
+    private byte[] processKey(String key) {
+        if (key == null || key.isEmpty()) {
+            throw new SecurityException("Key cannot be null or empty");
+        }
 
+        byte[] keyBytes = key.getBytes(StandardCharsets.UTF_8);
+        
+        // If key length is exactly 16 bytes, use it as is
+        if (keyBytes.length == SM4_KEY_LENGTH) {
+            return keyBytes;
+        }
+        
+        // If key is shorter than 16 bytes, pad it with zeros
+        // If key is longer than 16 bytes, truncate it
+        byte[] processedKey = new byte[SM4_KEY_LENGTH];
+        System.arraycopy(keyBytes, 0, processedKey, 0, Math.min(keyBytes.length, SM4_KEY_LENGTH));
+        
+        return processedKey;
+    }
+
+    public String encrypt(String content, String keyType) {
+        if (content == null || content.isEmpty()) {
+            return content;
+        }
+
+        try {
+            String key = keyManager.getKey(keyType);
+            byte[] processedKey = processKey(key);
+            SecretKeySpec skeySpec = new SecretKeySpec(processedKey, "SM4");
+            Cipher cipher = Cipher.getInstance("SM4/ECB/PKCS5Padding", "BC");
+            cipher.init(Cipher.ENCRYPT_MODE, skeySpec);
             byte[] encrypted = cipher.doFinal(content.getBytes(StandardCharsets.UTF_8));
-            String encryptedBase64 = Base64.getEncoder().encodeToString(encrypted);
-            
-            // 拼接密钥ID和加密内容
-            return currentKey.getId() + SEPARATOR + encryptedBase64;
-            
+            return SEPARATOR + keyType + SEPARATOR + Base64.getEncoder().encodeToString(encrypted);
         } catch (Exception e) {
-            log.error("Encryption failed", e);
+            log.error("Encryption failed for content with keyType: {}", keyType, e);
             throw new SecurityException("Encryption failed", e);
         }
     }
 
-    public String decrypt(String encryptedContent) {
+    public String decrypt(String encryptedContent, String keyType) {
         if (encryptedContent == null || encryptedContent.isEmpty()) {
             return encryptedContent;
         }
 
         try {
-            String[] parts = encryptedContent.split(SEPARATOR);
-            if (parts.length != 2) {
-                log.error("Invalid encrypted content format");
-                return encryptedContent;
-            }
+            String key = keyManager.getKey(keyType);
+            byte[] processedKey = processKey(key);
 
-            Long keyId = Long.parseLong(parts[0]);
-            String encryptedBase64 = parts[1];
-            
-            SecurityKey key = keyManager.getKeyById(keyId);
-            
-            Cipher cipher = Cipher.getInstance(ALGORITHM, "BC");
-            SecretKeySpec keySpec = new SecretKeySpec(key.getKeyValue().getBytes(StandardCharsets.UTF_8), "SM4");
-            cipher.init(Cipher.DECRYPT_MODE, keySpec);
-
-            byte[] encryptedBytes = Base64.getDecoder().decode(encryptedBase64);
-            byte[] decrypted = cipher.doFinal(encryptedBytes);
+            SecretKeySpec skeySpec = new SecretKeySpec(processedKey, "SM4");
+            Cipher cipher = Cipher.getInstance("SM4/ECB/PKCS5Padding", "BC");
+            cipher.init(Cipher.DECRYPT_MODE, skeySpec);
+            byte[] decrypted = cipher.doFinal(Base64.getDecoder().decode(encryptedContent));
             return new String(decrypted, StandardCharsets.UTF_8);
-            
         } catch (Exception e) {
-            log.error("Decryption failed", e);
-            return encryptedContent;
+            log.error("Decryption failed for content: {}", encryptedContent, e);
+            throw new SecurityException("Decryption failed", e);
         }
     }
 }
