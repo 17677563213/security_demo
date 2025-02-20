@@ -22,19 +22,19 @@ public class User {
     
     private String password;
 
-    @Encrypt(keyType = "PHONE_KEY")
+    @Encrypt()
     @Decrypt
     @Digest
     @Mask(type = Mask.MaskType.PHONE)
     private String phone;
 
-    @Encrypt(keyType = "EMAIL_KEY")
+    @Encrypt()
     @Decrypt
     @Digest
     @Mask(type = Mask.MaskType.EMAIL)
     private String email;
 
-    @Encrypt(keyType = "ID_CARD_KEY")
+    @Encrypt()
     @Decrypt
     @Digest
     @Mask(type = Mask.MaskType.ID_CARD)
