@@ -2,6 +2,7 @@ CREATE DATABASE IF NOT EXISTS security_key_db;
 USE security_key_db;
 
 
+
 DROP TABLE IF EXISTS `security_key`;
 CREATE TABLE `security_key` (
                                 `id` bigint NOT NULL AUTO_INCREMENT,
@@ -15,6 +16,6 @@ CREATE TABLE `security_key` (
                                 PRIMARY KEY (`id`),
                                 KEY `idx_key_type_status` (`key_type`,`status`),
                                 KEY `idx_expiry_time` (`expiry_time`)
-) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='安全密钥表';
+) ENGINE=InnoDB AUTO_INCREMENT=69 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='安全密钥表';
 
 SET FOREIGN_KEY_CHECKS = 1;

@@ -21,7 +21,7 @@ public class SecurityDataSourceConfig {
     @Value("${security.datasource.driver-class-name}")
     private String driverClassName;
 
-    @Value("${security.datasource.jdbc-url}")
+    @Value("${security.datasource.url}")
     private String jdbcUrl;
 
     @Value("${security.datasource.username}")
