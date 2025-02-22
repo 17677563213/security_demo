@@ -15,12 +15,14 @@
     {
       "name": "security.crypto.algorithm",
       "type": "java.lang.String",
-      "sourceType": "com.livelab.security.starter.properties.SecurityProperties$CryptoProperties"
+      "sourceType": "com.livelab.security.starter.properties.SecurityProperties$CryptoProperties",
+      "defaultValue": "SM4"
     },
     {
       "name": "security.crypto.key-expire-minutes",
       "type": "java.lang.Integer",
-      "sourceType": "com.livelab.security.starter.properties.SecurityProperties$CryptoProperties"
+      "sourceType": "com.livelab.security.starter.properties.SecurityProperties$CryptoProperties",
+      "defaultValue": 30
     }
   ],
   "hints": []

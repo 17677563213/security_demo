@@ -1,7 +1,7 @@
 package com.livelab.security.starter.aspect;
 
 import com.livelab.security.starter.annotation.Mask;
-import com.livelab.security.starter.core.MaskUtil;
+import com.livelab.security.starter.util.MaskUtil;
 import com.livelab.security.starter.common.ApiResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.aspectj.lang.ProceedingJoinPoint;

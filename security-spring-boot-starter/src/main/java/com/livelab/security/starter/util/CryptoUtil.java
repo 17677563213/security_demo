@@ -1,5 +1,6 @@
-package com.livelab.security.starter.core;
+package com.livelab.security.starter.util;
 
+import com.livelab.security.starter.core.KeyManager;
 import com.livelab.security.starter.exception.SecurityException;
 import lombok.extern.slf4j.Slf4j;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
@@ -8,7 +9,6 @@ import javax.crypto.Cipher;
 import javax.crypto.spec.SecretKeySpec;
 import java.nio.charset.StandardCharsets;
 import java.security.Security;
-import java.util.Arrays;
 import java.util.Base64;
 
 @Slf4j
@@ -89,7 +89,7 @@ public class CryptoUtil {
 
         try {
             // 从密钥管理器获取当前有效的密钥信息（包含密钥ID和密钥值）
-            KeyInfo keyInfo = keyManager.getKeyInfo();
+            com.livelab.security.starter.model.KeyInfo keyInfo = keyManager.getKeyInfo();
             // 对密钥进行处理（如填充或截断），确保符合SM4算法要求
             byte[] processedKey = processKey(keyInfo.getKeyValue());
 

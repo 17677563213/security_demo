@@ -2,6 +2,7 @@ package com.livelab.security.starter.core;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
+import com.livelab.security.starter.model.KeyInfo;
 import com.livelab.security.starter.properties.SecurityProperties;
 import com.livelab.security.starter.entity.SecurityKey;
 import com.livelab.security.starter.mapper.SecurityKeyMapper;
@@ -126,20 +127,3 @@ public class KeyManager {
     }
 }
 
-class KeyInfo {
-    private Long id;
-    private String keyValue;
-
-    public KeyInfo(Long id, String keyValue) {
-        this.id = id;
-        this.keyValue = keyValue;
-    }
-
-    public Long getId() {
-        return id;
-    }
-
-    public String getKeyValue() {
-        return keyValue;
-    }
-}

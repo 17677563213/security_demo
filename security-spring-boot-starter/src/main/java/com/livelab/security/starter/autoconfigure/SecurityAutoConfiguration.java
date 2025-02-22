@@ -2,7 +2,7 @@ package com.livelab.security.starter.autoconfigure;
 
 import com.livelab.security.starter.aspect.DataMaskAspect;
 import com.livelab.security.starter.aspect.DataSecurityAspect;
-import com.livelab.security.starter.core.CryptoUtil;
+import com.livelab.security.starter.util.CryptoUtil;
 import com.livelab.security.starter.core.KeyManager;
 import com.livelab.security.starter.mapper.SecurityKeyMapper;
 import com.livelab.security.starter.properties.SecurityProperties;

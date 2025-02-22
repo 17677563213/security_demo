@@ -1,4 +1,4 @@
-package com.livelab.security.starter.core;
+package com.livelab.security.starter.util;
 
 import com.livelab.security.starter.annotation.Mask;
 import org.springframework.util.StringUtils;
