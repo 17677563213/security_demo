@@ -1,0 +1,27 @@
+{
+  "groups": [
+    {
+      "name": "security",
+      "type": "com.livelab.security.starter.autoconfigure.SecurityProperties",
+      "sourceType": "com.livelab.security.starter.autoconfigure.SecurityProperties"
+    },
+    {
+      "name": "security.crypto",
+      "type": "com.livelab.security.starter.autoconfigure.SecurityProperties$CryptoProperties",
+      "sourceType": "com.livelab.security.starter.autoconfigure.SecurityProperties"
+    }
+  ],
+  "properties": [
+    {
+      "name": "security.crypto.algorithm",
+      "type": "java.lang.String",
+      "sourceType": "com.livelab.security.starter.autoconfigure.SecurityProperties$CryptoProperties"
+    },
+    {
+      "name": "security.crypto.key-expire-minutes",
+      "type": "java.lang.Integer",
+      "sourceType": "com.livelab.security.starter.autoconfigure.SecurityProperties$CryptoProperties"
+    }
+  ],
+  "hints": []
+}

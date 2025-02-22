@@ -1,0 +1,3 @@
+org.springframework.boot.autoconfigure.EnableAutoConfiguration=\
+com.livelab.security.starter.autoconfigure.SecurityAutoConfiguration,\
+com.livelab.security.starter.config.DataMaskAutoConfiguration
