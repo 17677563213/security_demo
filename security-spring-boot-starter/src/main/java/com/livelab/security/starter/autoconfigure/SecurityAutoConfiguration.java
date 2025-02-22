@@ -1,5 +1,6 @@
 package com.livelab.security.starter.autoconfigure;
 
+import com.livelab.security.starter.aspect.DataMaskAspect;
 import com.livelab.security.starter.aspect.DataSecurityAspect;
 import com.livelab.security.starter.config.SecurityDataSourceConfig;
 import com.livelab.security.starter.core.CryptoUtil;
@@ -128,5 +129,12 @@ public class SecurityAutoConfiguration {
     @ConditionalOnMissingBean
     public DataSecurityAspect dataSecurityAspect(CryptoUtil cryptoUtil, DigestUtil digestUtil) {
         return new DataSecurityAspect(cryptoUtil, digestUtil);
+    }
+
+
+    @Bean
+    @ConditionalOnMissingBean
+    public DataMaskAspect dataMaskAspect() {
+        return new DataMaskAspect();
     }
 }

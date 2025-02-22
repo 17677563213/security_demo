@@ -15,7 +15,6 @@ com/livelab/security/starter/annotation/Digest.class
 META-INF/spring-configuration-metadata.json
 com/livelab/security/starter/autoconfigure/SecurityProperties.class
 com/livelab/security/starter/core/MaskUtil$1.class
-com/livelab/security/starter/config/DataMaskAutoConfiguration.class
 com/livelab/security/starter/annotation/Encrypt.class
 com/livelab/security/starter/core/CryptoUtil.class
 com/livelab/security/starter/autoconfigure/SecurityProperties$CryptoProperties.class
