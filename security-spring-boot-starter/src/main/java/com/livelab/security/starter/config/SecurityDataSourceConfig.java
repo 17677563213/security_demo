@@ -14,34 +14,78 @@ import org.springframework.jdbc.datasource.DataSourceTransactionManager;
 
 import javax.sql.DataSource;
 
+/**
+ * 安全模块数据源配置类
+ * 
+ * 该配置类主要用于设置安全模块专用的数据库连接和MyBatis配置。
+ * 通过独立的数据源配置，实现了安全模块与其他业务模块的数据隔离，提高系统安全性。
+ *
+ * 主要功能：
+ * 1. 配置独立的HikariCP数据源，用于安全模块的数据库连接
+ * 2. 配置MyBatis的SqlSessionFactory，管理数据库会话
+ * 3. 配置事务管理器，处理数据库事务
+ * 4. 配置SqlSessionTemplate，提供线程安全的数据库操作模板
+ *
+ * 使用说明：
+ * - 通过@Configuration注解标记为Spring配置类
+ * - 通过@MapperScan注解自动扫描Mapper接口
+ * - 所有配置参数都可在application.properties中自定义
+ */
 @Configuration
 @MapperScan(basePackages = "com.livelab.security.starter.mapper", sqlSessionTemplateRef = "securitySqlSessionTemplate")
 public class SecurityDataSourceConfig {
 
+    /**
+     * MySQL数据库驱动类名
+     */
     @Value("${security.datasource.driver-class-name}")
     private String driverClassName;
 
+    /**
+     * 数据库连接URL
+     */
     @Value("${security.datasource.url}")
     private String jdbcUrl;
 
+    /**
+     * 数据库用户名
+     */
     @Value("${security.datasource.username}")
     private String username;
 
+    /**
+     * 数据库密码
+     */
     @Value("${security.datasource.password}")
     private String password;
 
+    /**
+     * 连接池最小空闲连接数，默认值：5
+     */
     @Value("${security.datasource.minimum-idle:5}")
     private int minimumIdle;
 
+    /**
+     * 连接池最大连接数，默认值：20
+     */
     @Value("${security.datasource.maximum-pool-size:20}")
     private int maximumPoolSize;
 
+    /**
+     * 连接空闲超时时间，默认值：300000ms（5分钟）
+     */
     @Value("${security.datasource.idle-timeout:300000}")
     private long idleTimeout;
 
+    /**
+     * 连接获取超时时间，默认值：20000ms（20秒）
+     */
     @Value("${security.datasource.connection-timeout:20000}")
     private long connectionTimeout;
 
+    /**
+     * 连接池名称，默认值：SecurityHikariCP
+     */
     @Value("${security.datasource.pool-name:SecurityHikariCP}")
     private String poolName;
 
