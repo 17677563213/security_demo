@@ -1,4 +1,4 @@
-package com.livelab.security.starter.config;
+package com.livelab.security.starter.autoconfigure;
 
 import com.baomidou.mybatisplus.extension.spring.MybatisSqlSessionFactoryBean;
 import com.zaxxer.hikari.HikariDataSource;

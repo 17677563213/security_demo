@@ -2,9 +2,8 @@ package com.livelab.security.starter.core;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
-import com.livelab.security.starter.autoconfigure.SecurityProperties;
+import com.livelab.security.starter.properties.SecurityProperties;
 import com.livelab.security.starter.entity.SecurityKey;
-import com.livelab.security.starter.exception.SecurityException;
 import com.livelab.security.starter.mapper.SecurityKeyMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;

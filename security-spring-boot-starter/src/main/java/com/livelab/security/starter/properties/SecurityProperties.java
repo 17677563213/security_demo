@@ -1,4 +1,4 @@
-package com.livelab.security.starter.autoconfigure;
+package com.livelab.security.starter.properties;
 
 import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
